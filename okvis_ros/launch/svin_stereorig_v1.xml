@@ -7,9 +7,9 @@
 
     <!-- To un-compress and sync the image topics -->
     <node name="stereo_sync" exec="stereo_sync" pkg="okvis_ros" output="screen">
-        <param name="left_img_topic" value="/slave1/image_masked"/>
-        <param name="right_img_topic" value="/slave2/image_masked"/>
-        <param name="compressed" value="false"/>
+        <param name="left_img_topic" value="/slave1/image_raw"/>
+        <param name="right_img_topic" value="/slave2/image_raw"/>
+        <param name="compressed" value="true"/>
         <param name="config_filename" type="str" value="$(var config)"/>
     </node>
 
