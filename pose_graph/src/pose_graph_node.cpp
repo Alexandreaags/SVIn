@@ -119,6 +119,12 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
+  // Optional fixed path (without extension) for the trajectory saved on shutdown.
+  // Empty keeps the default timestamped file inside svin_results/.
+  std::string trajectory_file;
+  node->declare_parameter<std::string>("trajectory_file", "");
+  node->get_parameter<std::string>("trajectory_file", trajectory_file);
+
   Parameters params;
   params.loadParameters(config_file);
 
@@ -247,7 +253,11 @@ int main(int argc, char** argv) {
   }
 
   // After rclcpp::ok() is false (shutdown signal received)
-  std::string save_path = params.svin_traj_path_ + "svin_" + Utils::getTimeStr();
+  std::string save_path =
+      trajectory_file.empty() ? params.svin_traj_path_ + "svin_" + Utils::getTimeStr() : trajectory_file;
+  if (!trajectory_file.empty()) {
+    std::filesystem::create_directories(std::filesystem::path(trajectory_file).parent_path());
+  }
   publisher->saveTrajectory(save_path);
   LOG(INFO) << "Shutting down threads...";
   loop_closure->shutdown();

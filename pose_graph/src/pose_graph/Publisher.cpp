@@ -201,9 +201,10 @@ void Publisher::saveTrajectory(const std::string& filename) const {
   for (geometry_msgs::msg::PoseStamped keyframe_pose : loop_closure_traj_.poses) {
     geometry_msgs::msg::Quaternion quat = keyframe_pose.pose.orientation;
     geometry_msgs::msg::Point pos = keyframe_pose.pose.position;
-    loop_path_file << keyframe_pose.header.stamp.sec << "." << keyframe_pose.header.stamp.nanosec << " " << pos.x << " "
-                   << pos.y << " " << pos.z << " " << quat.x << " " << quat.y << " " << quat.z << " " << quat.w
-                   << std::endl;
+    // nanoseconds must be zero-padded to 9 digits, otherwise e.g. 5000000 ns is read back as .5 s
+    loop_path_file << keyframe_pose.header.stamp.sec << "." << std::setw(9) << std::setfill('0')
+                   << keyframe_pose.header.stamp.nanosec << std::setfill(' ') << " " << pos.x << " " << pos.y << " "
+                   << pos.z << " " << quat.x << " " << quat.y << " " << quat.z << " " << quat.w << std::endl;
   }
   loop_path_file.close();
   RCLCPP_INFO(node_->get_logger(), "Trajectory saved to: %s", txt_file.c_str());
