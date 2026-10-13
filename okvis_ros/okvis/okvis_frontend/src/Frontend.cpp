@@ -134,6 +134,7 @@ bool Frontend::dataAssociationAndInitialization(
         Exception, distortionType == params.nCameraSystem.distortionType(i), "mixed frame types are not supported yet");
   }
   int num3dMatches = 0;
+  lastFrameTracked_ = false;
 
   // first frame? (did do addStates before, so 1 frame minimum in estimator)
   if (estimator.numFrames() > 1) {
@@ -178,6 +179,7 @@ bool Frontend::dataAssociationAndInitialization(
     if (num3dMatches <= requiredMatches) {
       LOG(WARNING) << "Tracking failure. Number of 3d2d-matches: " << num3dMatches;
     }
+    lastFrameTracked_ = num3dMatches > requiredMatches;
 
     // keyframe decision, at the moment only landmarks that match with keyframe are initialised
     *asKeyframe = *asKeyframe || doWeNeedANewKeyframe(estimator, framesInOut);
@@ -238,6 +240,7 @@ bool Frontend::dataAssociationAndInitialization(
   }
   matchStereoTimer.stop();
 
+  numKeyframeMatches_ = num3dMatches;
   return true;
 }
 

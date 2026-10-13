@@ -5,6 +5,8 @@
     <arg name="rviz" default="true"/>
     <!-- fixed path (without extension) for the trajectory saved on shutdown; empty = timestamped file in svin_results/ -->
     <arg name="trajectory_file" default=""/>
+    <!-- CSV with the keypoint/match counts of every frame (benchmark); empty = off -->
+    <arg name="feature_stats_file" default=""/>
 
     <set_parameter name="use_sim_time" value="true"/>
 
@@ -27,6 +29,7 @@
 
         <param name="config_filename" value="$(var config)"/>
         <param name="mesh_file" value="firefly.dae"/>
+        <param name="feature_stats_file" type="str" value="$(var feature_stats_file)"/>
 
         <remap from="/camera0" to="/cam0/image_raw"/>
         <remap from="/camera1" to="/cam1/image_raw"/>

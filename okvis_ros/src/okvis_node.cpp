@@ -84,6 +84,13 @@ int main(int argc, char** argv) {
 
   okvis::ThreadedKFVio okvis_estimator(parameters);
 
+  // Optional CSV with the keypoint/match counts of every frame (benchmark); empty = off
+  std::string featureStatsFile;
+  node->get_parameter<std::string>("feature_stats_file", featureStatsFile);
+  if (!featureStatsFile.empty() && !okvis_estimator.setFeatureStatsCsvFile(featureStatsFile)) {
+    return 1;
+  }
+
   // Like okvis_node_synchronous to setup files to be written
   // publisher.setCsvFile("okvis_estimator_output.csv");
   // publisher.setLandmarksCsvFile("okvis_estimator_landmarks.csv");

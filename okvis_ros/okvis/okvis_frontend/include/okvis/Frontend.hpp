@@ -175,6 +175,12 @@ class Frontend : public VioFrontendInterface {
   /// @brief Returns true if the initialization has been completed (RANSAC with actual translation)
   bool isInitialized() { return isInitialized_; }
 
+  /// @brief Matches of the last frame with the most recent keyframes (3D-2D and 2D-2D, all cameras, before RANSAC).
+  int numKeyframeMatches() const { return numKeyframeMatches_; }
+
+  /// @brief False if the last frame had too few keyframe matches ("Tracking failure") or was the first frame.
+  bool lastFrameTracked() const { return lastFrameTracked_; }
+
   /// @}
   /// @name Setters related to the BRISK detector
   /// @{
@@ -253,6 +259,8 @@ class Frontend : public VioFrontendInterface {
   std::vector<std::unique_ptr<std::mutex> > featureDetectorMutexes_;
 
   bool isInitialized_;              ///< Is the pose initialised?
+  int numKeyframeMatches_ = 0;      ///< Keyframe matches of the last frame (see numKeyframeMatches()).
+  bool lastFrameTracked_ = false;   ///< Tracking of the last frame succeeded (see lastFrameTracked()).
   const size_t numCameras_;         ///< Number of cameras in the configuration.
   bool isScaleRefined_ = true;      // false; // FIXME Sharmin: make it private and create set/get functions
   int numStatesToRefineScale_ = 0;  // FIXME Sharmin: make it private and create set/get functions

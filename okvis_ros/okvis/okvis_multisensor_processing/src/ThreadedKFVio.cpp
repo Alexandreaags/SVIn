@@ -41,6 +41,7 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <iomanip>
 #include <list>
 #include <map>
 #include <memory>
@@ -49,6 +50,7 @@
 #include <okvis/cameras/PinholeCamera.hpp>               // Sharmin
 #include <okvis/cameras/RadialTangentialDistortion.hpp>  // Sharmin
 #include <okvis/ceres/ImuError.hpp>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 /// @Sharmin
@@ -417,6 +419,57 @@ void ThreadedKFVio::setBlocking(bool blocking) {
   }
 }
 
+// Write the keypoint and match counts of every frame to a CSV file.
+bool ThreadedKFVio::setFeatureStatsCsvFile(const std::string& csvFileName) {
+  featureStatsCsvFile_.open(csvFileName);
+  if (!featureStatsCsvFile_.good()) {
+    LOG(ERROR) << "Cannot open feature stats file " << csvFileName;
+    return false;
+  }
+  // Columns shared with the other benchmarked SLAMs first, then SVIn-only ones (see writeFeatureStats())
+  featureStatsCsvFile_ << "timestamp,kp_left,kp_right,stereo_matches,tracked,tracking_ok,keyframe,tracked_right,"
+                          "kf_matches"
+                       << std::endl;
+  return true;
+}
+
+// Counts after data association, before the optimization:
+//   kp_left/kp_right  BRISK keypoints of camera 0/1
+//   stereo_matches    camera 0 keypoints whose landmark is also observed by a camera 1 keypoint of this frame
+//   tracked           camera 0 keypoints whose landmark was observed by an older frame, i.e. matched to the
+//                     keyframes or the last frame (3D-2D, or 2D-2D and triangulated) and kept by the 3D-2D RANSAC
+//   tracked_right     the same for camera 1
+//   tracking_ok       the frontend did not report a tracking failure (> 5 keyframe matches)
+//   kf_matches        matches with the most recent keyframes, all cameras, before RANSAC (Frontend::numKeyframeMatches)
+void ThreadedKFVio::writeFeatureStats(const okvis::MultiFrame& frame, bool asKeyframe) {
+  const size_t numCameras = std::min<size_t>(frame.numFrames(), 2);
+  size_t tracked[2] = {0, 0};
+  std::unordered_set<uint64_t> landmarksRight;
+  okvis::MapPoint landmark;
+  for (size_t im = 0; im < numCameras; ++im) {
+    for (size_t k = 0; k < frame.numKeypoints(im); ++k) {
+      // Unmatched keypoints get an id too (end of matchStereo), but no landmark in the estimator
+      uint64_t lmId = frame.landmarkId(im, k);
+      if (lmId == 0 || !estimator_.isLandmarkAdded(lmId)) continue;
+      if (im == 1) landmarksRight.insert(lmId);
+      // Observations are sorted by frame id, so the first one is older than this frame if the landmark is tracked
+      estimator_.getLandmark(lmId, landmark);
+      if (!landmark.observations.empty() && landmark.observations.begin()->first.frameId != frame.id()) tracked[im]++;
+    }
+  }
+  size_t stereoMatches = 0;
+  for (size_t k = 0; numCameras > 1 && k < frame.numKeypoints(0); ++k) {
+    if (landmarksRight.count(frame.landmarkId(0, k))) stereoMatches++;
+  }
+
+  const okvis::Time& t = frame.timestamp();
+  featureStatsCsvFile_ << t.sec << "." << std::setw(9) << std::setfill('0') << t.nsec << std::setfill(' ') << ","
+                       << frame.numKeypoints(0) << "," << (numCameras > 1 ? frame.numKeypoints(1) : 0) << ","
+                       << stereoMatches << "," << tracked[0] << "," << int(frontend_.lastFrameTracked()) << ","
+                       << int(asKeyframe) << "," << tracked[1] << "," << frontend_.numKeyframeMatches()
+                       << std::endl;  // flushed every frame so the rows survive a crash
+}
+
 // Loop to process frames from camera with index cameraIndex
 void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
   std::shared_ptr<okvis::CameraMeasurement> frame;
@@ -762,6 +815,8 @@ void ThreadedKFVio::matchingLoop() {
             parameters_.optimization.timeLimitForMatchingAndOptimization - (okvis::Time::now() - t0Matching).toSec();
         estimator_.setOptimizationTimeLimit(std::max<double>(0.0, timeLimit), parameters_.optimization.min_iterations);
       }
+      // After the time limit is set, so that writing the stats does not shorten the optimization
+      if (featureStatsCsvFile_.is_open()) writeFeatureStats(*frame, asKeyframe);
       optimizationDone_ = false;
     }  // unlock estimator_mutex_
 

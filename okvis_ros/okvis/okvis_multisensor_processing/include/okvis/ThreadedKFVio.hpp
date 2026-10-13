@@ -43,6 +43,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <fstream>
 #include <mutex>
 #include <okvis/FrameSynchronizer.hpp>
 #include <okvis/Frontend.hpp>
@@ -239,6 +240,14 @@ class ThreadedKFVio : public VioInterface {
    */
   virtual void setBlocking(bool blocking);
 
+  /**
+   * \brief Write the keypoint and match counts of every frame to a CSV file (used by the SLAM benchmark).
+   *        Call before images are added.
+   * \param csvFileName The filename of a new file.
+   * \return True if the file could be opened.
+   */
+  bool setFeatureStatsCsvFile(const std::string& csvFileName);
+
   /// \}
 
   /// \brief Trigger display (needed because OSX won't allow threaded display).
@@ -255,6 +264,8 @@ class ThreadedKFVio : public VioInterface {
   void frameConsumerLoop(size_t cameraIndex);
   /// \brief Loop that matches frames with existing frames.
   void matchingLoop();
+  /// \brief Append the keypoint and match counts of a frame to the feature stats CSV (after data association).
+  void writeFeatureStats(const okvis::MultiFrame& frame, bool asKeyframe);
   /// \brief Loop to process IMU measurements.
   void imuConsumerLoop();
   /// @Sharmin
@@ -495,6 +506,8 @@ class ThreadedKFVio : public VioInterface {
   int kf_index_;                    // Sharmin: keyframe index
   std::map<int, size_t> kf_f_map_;  // Sharmin: for publishing MapPoint observation
   std::mutex kf_f_map_mutex_;
+
+  std::ofstream featureStatsCsvFile_;  ///< Keypoint/match counts per frame (benchmark), written by matchingLoop().
 };
 
 }  // namespace okvis
